@@ -3,6 +3,7 @@ import "./Sidebar.css";
 import { Avatar, IconButton } from '@mui/material';
 import { useStateValue } from '../ContextApi/StateProvider';
 import { Chat,MoreVert,DonutLarge, SearchOutlined } from "@mui/icons-material";
+import SidebarChat from '../SidebarChat/SidebarChat';
 
 const Sidebar = () => {
   const[{user}] = useStateValue();
@@ -36,7 +37,10 @@ const Sidebar = () => {
         </div>
     </div>
     <div className='sidebar__chats'>
-        
+        <SidebarChat addNewChat/>
+        <SidebarChat/>
+        <SidebarChat/>
+        <SidebarChat/>
     </div>
     </div>
   )
