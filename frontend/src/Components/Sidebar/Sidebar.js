@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./Sidebar.css";
 import { Avatar, IconButton } from '@mui/material';
 import { useStateValue } from '../ContextApi/StateProvider';
 import { Chat, MoreVert, DonutLarge, SearchOutlined } from "@mui/icons-material";
 import SidebarChat from '../SidebarChat/SidebarChat';
 import axios from "axios";
+import Pusher from "pusher-js";
 
 const Sidebar = () => {
   const [{ user }] = useStateValue();
@@ -20,6 +21,22 @@ const Sidebar = () => {
       }
     };
     fetchRooms();
+  }, []);
+
+  useEffect(() => {
+    const pusher = new Pusher("6fbb654a0e0b670de165", {
+      cluster: "ap2",
+    });
+
+    const channel = pusher.subscribe("room");
+    channel.bind("inserted", function (room) {
+      setRooms(prevRooms => [...prevRooms, room]); // Update state with new room
+    });
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
   }, []);
 
   return (
@@ -47,7 +64,7 @@ const Sidebar = () => {
       </div>
       
       <div className="sidebar__chats">
-        <SidebarChat addNewChat />
+        <SidebarChat addNewChat setRooms={setRooms} />
         {rooms.map((room) => (
           <SidebarChat key={room._id} id={room._id} name={room.name} />
         ))}

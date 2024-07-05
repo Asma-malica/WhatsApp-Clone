@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import "./Chat.css";
 import { Avatar, IconButton } from "@mui/material";
-import { AttachFile, InsertEmoticon, MoreVert, SearchOutlined } from "@mui/icons-material";
+import { AttachFile, InsertEmoticon, Mic, MoreVert, SearchOutlined } from "@mui/icons-material";
 import axios from "axios";
 import { useStateValue } from "../ContextApi/StateProvider";
 import { useParams } from "react-router-dom";
-
+import Pusher from "pusher-js";
+// import 'emoji-mart/dist/emoji-mart.css';
+import { Picker } from 'emoji-mart';
 
 const Chat = () => {
   const [seed, setSeed] = useState("");
@@ -15,39 +17,79 @@ const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [roomName, setRoomName] = useState("");
   const [updatedAt, setUpdatedAt] = useState(new Date());
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
+    // Function to fetch room details and messages
+    const fetchRoomDetails = async () => {
+      try {
+        const roomResponse = await axios.get(`http://localhost:5000/room/${roomId}`);
+        setRoomName(roomResponse.data.name);
+        setUpdatedAt(roomResponse.data.updatedAt);
+
+        const messagesResponse = await axios.get(`http://localhost:5000/messages/${roomId}`);
+        setMessages(messagesResponse.data);
+      } catch (error) {
+        console.error("Error fetching room details and messages:", error);
+      }
+    };
+
     if (roomId) {
-      axios.get(`http://localhost:5000/room/${roomId}`).then((response) => {
-        setRoomName(response.data.name);
-        setUpdatedAt(response.data.updatedAt);
-      });
-      axios.get(`http://localhost:5000/messages/${roomId}`).then((response) => {
-        setMessages(response.data);
-      });
+      fetchRoomDetails();
     }
   }, [roomId]);
-  
+
   useEffect(() => {
     setSeed(Math.floor(Math.random() * 5000));
   }, [roomId]);
 
+  useEffect(() => {
+    // Initialize Pusher
+    const pusher = new Pusher("YOUR_PUSHER_KEY", {
+      cluster: "YOUR_PUSHER_CLUSTER",
+    });
+
+    // Subscribe to the channel
+    const channel = pusher.subscribe("messages");
+    
+    // Bind to 'inserted' event to receive new messages
+    channel.bind("inserted", function (newMessage) {
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+    });
+
+    // Clean up function
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
+  }, []);
+
   const sendMessage = async (e) => {
     e.preventDefault();
-    console.log(input);
-    if (!input) {
+    if (!input.trim()) {
       return;
     }
 
-    await axios.post("http://localhost:5000/messages/new", {
-      message: input,
-      name: user.displayName,
-      timestamp: new Date(),
-      uid: user.uid,
-      roomId: roomId,
-    });
+    try {
+      // Send message to server
+      const response = await axios.post("http://localhost:5000/messages/new", {
+        message: input,
+        name: user.displayName,
+        timestamp: new Date(),
+        uid: user.uid,
+        roomId: roomId,
+      });
 
-    setInput("");
+      // Update local state with the new message
+      setMessages([...messages, response.data]);
+      setInput(""); // Clear input field
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setInput(input + emoji.native); // Append selected emoji to input field
   };
 
   return (
@@ -68,8 +110,8 @@ const Chat = () => {
             <AttachFile />
           </IconButton>
 
-          <IconButton>
-            <MoreVert />
+          <IconButton onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+            <InsertEmoticon />
           </IconButton>
         </div>
       </div>
@@ -77,8 +119,8 @@ const Chat = () => {
       <div className="chat__body">
         {messages.map((message, index) => (
           <p
-            className={`chat__message ${message.uid === user.uid && "chat__receiver"}`}
-            key={message?.id ? message?.id : index}>
+            className={`chat__message ${message.uid === user.uid ? "chat__receiver" : ""}`}
+            key={message._id ? message._id : index}>
             <span className="chat__name">{message.name}</span>
             {message.message}
             <span className="chat__timestamp">
@@ -88,19 +130,27 @@ const Chat = () => {
         ))}
       </div>
 
-      <div className='chat__footer'>
-        <InsertEmoticon />
-        <form onSubmit={sendMessage}>
-          <input
-            placeholder='Type a message'
-            onChange={e => setInput(e.target.value)}
-            value={input}
-          />
-          <button type="submit">Send a message</button>
-        </form>
-      </div>
+      {showEmojiPicker && (
+        <div className="emojiPicker">
+          <Picker onSelect={handleEmojiSelect} />
+        </div>
+      )}
+
+      {roomName && (
+        <div className='chat__footer'>
+          <form onSubmit={sendMessage}>
+            <input
+              placeholder='Type a message'
+              onChange={e => setInput(e.target.value)}
+              value={input}
+            />
+            <button type="submit">Send</button>
+          </form>
+          <Mic />
+        </div>
+      )}
     </div>
   );
 };
 
-export default Chat
+export default Chat;

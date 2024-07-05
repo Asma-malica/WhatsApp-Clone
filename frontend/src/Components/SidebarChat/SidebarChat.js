@@ -1,23 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from "react";
 import "./SidebarChat.css";
 import { Avatar } from "@mui/material";
-import axios from "axios";
 import { Link } from "react-router-dom";
+import axios from "../../axios";
 
-const SidebarChat = ({ addNewChat, id, name }) => {
-  const [seed, setSeed] = useState("");
-
-  useEffect(() => {
-    setSeed(Math.floor(Math.random() * 5000));
-  }, []);
+const SidebarChat = ({ addNewChat, id, name, setRooms }) => {
+  const [seed] = useState(Math.floor(Math.random() * 5000));
 
   const createChat = async () => {
-    const roomName = prompt("Please enter name for the group");
+    const roomName = prompt("Please enter name for chat room");
     if (roomName) {
       try {
-        await axios.post("http://localhost:5000/group/create", { groupName: roomName });
-      } catch (error) {
-        console.error(error);
+        const response = await axios.post("/group/create", {
+          groupName: roomName,
+        });
+        setRooms(prevRooms => [...prevRooms, response.data]); // Update state with new room
+      } catch (err) {
+        console.log(err);
       }
     }
   };
@@ -25,15 +24,15 @@ const SidebarChat = ({ addNewChat, id, name }) => {
   return !addNewChat ? (
     <Link to={`/rooms/${id}`}>
       <div className="sidebarChat">
-        <Avatar src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}`} />
+        <Avatar src={`https://avatars.dicebear.com/api/human/${seed}.svg`} />
         <div className="sidebarChat__info">
           <h2>{name}</h2>
         </div>
       </div>
     </Link>
   ) : (
-    <div className="sidebarChat" onClick={createChat}>
-      <h2>Add New Chat</h2>
+    <div onClick={createChat} className="sidebarChat">
+      <h2>Add new Chat</h2>
     </div>
   );
 };
