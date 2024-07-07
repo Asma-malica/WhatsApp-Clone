@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import "./Chat.css";
 import { Avatar, IconButton } from "@mui/material";
-import { AttachFile, InsertEmoticon, Mic, MoreVert, SearchOutlined } from "@mui/icons-material";
+import { AttachFile, InsertEmoticon, Mic, SearchOutlined } from "@mui/icons-material"; // Removed MoreVert
 import axios from "axios";
 import { useStateValue } from "../ContextApi/StateProvider";
 import { useParams } from "react-router-dom";
@@ -45,8 +45,8 @@ const Chat = () => {
 
   useEffect(() => {
     // Initialize Pusher
-    const pusher = new Pusher("YOUR_PUSHER_KEY", {
-      cluster: "YOUR_PUSHER_CLUSTER",
+    const pusher = new Pusher("9221b5c9e1102198e67b", {
+      cluster: "ap2",
     });
 
     // Subscribe to the channel
@@ -54,7 +54,12 @@ const Chat = () => {
     
     // Bind to 'inserted' event to receive new messages
     channel.bind("inserted", function (newMessage) {
-      setMessages(prevMessages => [...prevMessages, newMessage]);
+      setMessages(prevMessages => {
+        if (!prevMessages.some(message => message._id === newMessage._id)) {
+          return [...prevMessages, newMessage];
+        }
+        return prevMessages;
+      });
     });
 
     // Clean up function
@@ -80,8 +85,6 @@ const Chat = () => {
         roomId: roomId,
       });
 
-      // Update local state with the new message
-      setMessages([...messages, response.data]);
       setInput(""); // Clear input field
     } catch (error) {
       console.error("Error sending message:", error);
